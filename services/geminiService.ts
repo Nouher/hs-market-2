@@ -1,24 +1,23 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { ReviewData } from "../types";
 
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenerativeAI(process.env.API_KEY || "");
 
 export const generateReviews = async (): Promise<ReviewData[]> => {
   try {
-    const response = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({
       model: "gemini-2.5-flash",
-      contents: "Generate 3 short, punchy, and enthusiastic product reviews for 'AirPods 4th Gen Replicas' in Moroccan Arabic (Darija) mixed with some French/English tech terms if needed. The reviews should highlight sound quality, battery life, and the free protective case bonus. Use Moroccan names.",
-      config: {
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.ARRAY,
+          type: SchemaType.ARRAY,
           items: {
-            type: Type.OBJECT,
+            type: SchemaType.OBJECT,
             properties: {
-              author: { type: Type.STRING },
-              rating: { type: Type.NUMBER, description: "Rating out of 5, usually 5 or 4" },
-              text: { type: Type.STRING, description: "The review content in Arabic/Darija, max 20 words" },
+              author: { type: SchemaType.STRING },
+              rating: { type: SchemaType.NUMBER },
+              text: { type: SchemaType.STRING },
             },
             required: ["author", "rating", "text"],
           },
@@ -26,17 +25,22 @@ export const generateReviews = async (): Promise<ReviewData[]> => {
       },
     });
 
-    const text = response.text;
+    const result = await model.generateContent(
+      "Generate 3 short, punchy, and enthusiastic product reviews for 'AirPods 4th Gen Replicas' in Moroccan Arabic (Darija). Each under 20 words."
+    );
+
+    const text = result.response.text();
     if (!text) return [];
-    
+
     return JSON.parse(text) as ReviewData[];
   } catch (error) {
     console.error("Failed to generate reviews:", error);
-    // Fallback data in case of API failure in Arabic
+
+    // Fallback reviews
     return [
-      { author: "أمين التازي", rating: 5, text: "الصوت واعر بزاف بالنسبة لهاد الثمن! الباس قوي." },
-      { author: "سارة ل.", rating: 5, text: "عجبني الكاش اللي جا معاها فابور. البطارية كتشد نهار كامل." },
-      { author: "كريم ب.", rating: 4, text: "ماكاينش فرق بينها وبين الأصلية. التوصيل كان سريع." }
+      { author: "أمين التازي", rating: 5, text: "الصوت زوين بزاف والثمن مناسب بزاف!" },
+      { author: "سارة ل.", rating: 5, text: "البطارية كتبقى معايا نهار كامل والكاش فابور!" },
+      { author: "كريم ب.", rating: 4, text: "التوصيل كان سريع، الجودة مزيانة!" }
     ];
   }
 };
